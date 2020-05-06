@@ -1,0 +1,539 @@
+{
+	"info": {
+		"_postman_id": "f6dc8392-b9e0-43ab-a45d-4118553b27a4",
+		"name": "OktaFetch-Users/Apps/Groups Count",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Okta_InitializeEnvironment",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "12194589-658e-41b5-a6ab-c5ce1e3f22d9",
+						"exec": [
+							"pm.environment.set(\"APICallURL\", \"\");",
+							"pm.environment.set(\"TotalUsersProcessed\", \"\");",
+							"pm.environment.set(\"GroupsCount\", \"\");",
+							"pm.environment.set(\"ActiveApps\", \"\");",
+							"pm.environment.set(\"InactiveApps\", \"\");",
+							"pm.environment.set(\"ActiveUsers\", \"\");",
+							"pm.environment.set(\"DeprovisionedUsers\", \"\");",
+							"",
+							"var usersURL = pm.environment.get(\"url\") + \"/api/v1/users\";",
+							"var groupsURL = pm.environment.get(\"url\") + \"/api/v1/groups?limit=500\";",
+							"var appsURL = pm.environment.get(\"url\") + \"/api/v1/apps\";",
+							"",
+							"pm.environment.set(\"APICallURL\", usersURL);",
+							"pm.environment.set(\"GroupsAPICallURL\", groupsURL);",
+							"pm.environment.set(\"AppsAPICallURL\", appsURL);",
+							"",
+							"postman.setNextRequest(\"Okta_FetchUsers\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "SSWS {{apikey}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/api/v1/groups?limit=100",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"groups"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Okta_FetchUsers",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "4f639461-ea09-496b-a5d8-f27986328905",
+						"exec": [
+							"var jsonData = pm.response.json();\r",
+							"var headerData = pm.response.headers.all();\r",
+							"var currentActiveUsers = 0;\r",
+							"var currentTotalUsersProcessed = 0;\r",
+							"var nextURL;\r",
+							"\r",
+							"//Capturing HV, HCC & ActiveUser count from the response\r",
+							"    \r",
+							"pm.test(\"Filter/Capture Users From JSON Response\", function () {\r",
+							"        \r",
+							"    for(var i=0; i<jsonData.length; i++){\r",
+							"        \r",
+							"        currentActiveUsers++;\r",
+							"        currentTotalUsersProcessed++;\r",
+							"        //console.log(\"Processing User \" + jsonData[i].profile.email);\r",
+							"        }\r",
+							"    }\r",
+							");\r",
+							"\r",
+							"//Adding user count to the environment variables\r",
+							"\r",
+							"pm.environment.set(\"ActiveUsers\", Number((pm.environment.get(\"ActiveUsers\")) + currentActiveUsers));\r",
+							"pm.environment.set(\"TotalUsersProcessed\", Number((pm.environment.get(\"TotalUsersProcessed\")) + currentTotalUsersProcessed));\r",
+							"\r",
+							"//set next API request by using the Link header captured from the response headers\r",
+							"\r",
+							"    //step 1 - capture link header\r",
+							"    nextURL = pm.response.headers.get(\"Link\");\r",
+							"    \r",
+							"    //step2 - see if the response headers have the next ref URL\r",
+							"    try{\r",
+							"        pm.expect(nextURL).to.include('rel=\"next\"');\r",
+							"        //If the response headers have next ref URL, then set the next request. If the next ref URL is not available then above statement will throw Assertion Error.\r",
+							"        pm.environment.set(\"APICallURL\", nextURL.split(\"<\")[1].split(\">\")[0]);\r",
+							"        postman.setNextRequest(\"Okta_FetchUsers\");\r",
+							"    }\r",
+							"    catch(AssertionError){\r",
+							"        console.log(\"UsersProcessed\");\r",
+							"        console.log(\"Active Users = \" + pm.environment.get(\"ActiveUsers\"));\r",
+							"        pm.environment.set(\"APICallURL\", (pm.environment.get(\"url\") + \"/api/v1/users?filter=status+eq+%22DEPROVISIONED%22\"));\r",
+							"        postman.setNextRequest(\"Okta_FetchDeprovisionedUsers\");\r",
+							"    }\r",
+							"    \r",
+							"    "
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "SSWS {{apikey}}"
+					}
+				],
+				"url": {
+					"raw": "{{APICallURL}}",
+					"host": [
+						"{{APICallURL}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Okta_FetchDeprovisionedUsers",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "4f639461-ea09-496b-a5d8-f27986328905",
+						"exec": [
+							"var jsonData = pm.response.json();\r",
+							"var headerData = pm.response.headers.all();\r",
+							"var currentDeprovisionedUsers = 0;\r",
+							"var currentTotalUsersProcessed = 0;\r",
+							"var nextURL;\r",
+							"\r",
+							"//Capturing HV, HCC & ActiveUser count from the response\r",
+							"    \r",
+							"pm.test(\"Filter/Capture Users From JSON Response\", function () {\r",
+							"        \r",
+							"    for(var i=0; i<jsonData.length; i++){\r",
+							"        \r",
+							"        currentDeprovisionedUsers++;\r",
+							"        currentTotalUsersProcessed++;\r",
+							"        //console.log(\"Processing User \" + jsonData[i].profile.email);\r",
+							"        }\r",
+							"    }\r",
+							");\r",
+							"\r",
+							"//Adding user count to the environment variables\r",
+							"\r",
+							"pm.environment.set(\"DeprovisionedUsers\", Number((pm.environment.get(\"DeprovisionedUsers\")) + currentDeprovisionedUsers));\r",
+							"pm.environment.set(\"TotalUsersProcessed\", Number((pm.environment.get(\"TotalUsersProcessed\")) + currentTotalUsersProcessed));\r",
+							"\r",
+							"//set next API request by using the Link header captured from the response headers\r",
+							"\r",
+							"    //step 1 - capture link header\r",
+							"    nextURL = pm.response.headers.get(\"Link\");\r",
+							"    \r",
+							"    //step2 - see if the response headers have the next ref URL\r",
+							"    try{\r",
+							"        pm.expect(nextURL).to.include('rel=\"next\"');\r",
+							"        //If the response headers have next ref URL, then set the next request. If the next ref URL is not available then above statement will throw Assertion Error.\r",
+							"        pm.environment.set(\"APICallURL\", nextURL.split(\"<\")[1].split(\">\")[0]);\r",
+							"        postman.setNextRequest(\"Okta_FetchDeprovisionedUsers\");\r",
+							"    }\r",
+							"    catch(AssertionError){\r",
+							"        //console.log(\"Deprovisioned Users Processed\");\r",
+							"        console.log(\"Deprovisioned Users = \" + pm.environment.get(\"DeprovisionedUsers\"));\r",
+							"        console.log(\"Total Users Processed = \" + pm.environment.get(\"TotalUsersProcessed\"));\r",
+							"        postman.setNextRequest(\"Okta_FetchGroups\");\r",
+							"    }\r",
+							"    \r",
+							"    "
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "SSWS {{apikey}}"
+					}
+				],
+				"url": {
+					"raw": "{{APICallURL}}",
+					"host": [
+						"{{APICallURL}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Okta_FetchGroups",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "d78f6783-0faf-47fd-8a20-ac203199f985",
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"//var jsonHeaders =  pm.resonse.headers();",
+							"var currentGroupsCount = 0;",
+							"var nextURL;",
+							"",
+							"for(i=0; i<jsonData.length; i++){",
+							"    //console.log(jsonData[i].id + \"  \" + jsonData[i].profile.name + \"  \" + jsonData[i].type);",
+							"    currentGroupsCount++;",
+							"}",
+							"",
+							"//Adding group count to the environment variables",
+							"",
+							"pm.environment.set(\"GroupsCount\", Number((pm.environment.get(\"GroupsCount\")) + currentGroupsCount));",
+							"",
+							"//set next API request by using the Link header captured from the response headers",
+							"",
+							"    //step 1 - capture link header",
+							"    nextURL = pm.response.headers.get(\"Link\");",
+							"    ",
+							"    //step2 - see if the response headers have the next ref URL",
+							"    try{",
+							"        pm.expect(nextURL).to.include('rel=\"next\"');",
+							"        //If the response headers have next ref URL, then set the next request. If the next ref URL is not available then above statement will throw Assertion Error.",
+							"        pm.environment.set(\"GroupsAPICallURL\", nextURL.split(\"<\")[1].split(\">\")[0]);",
+							"        postman.setNextRequest(\"Okta_FetchGroups\");",
+							"    }",
+							"    catch(AssertionError){",
+							"        console.log(\"Groups Processed\");",
+							"        console.log(\"There are \" + pm.environment.get(\"GroupsCount\") + \" groups in your Okta instance\");",
+							"        postman.setNextRequest(\"Okta_FetchApps\");",
+							"    }"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "SSWS {{apikey}}"
+					}
+				],
+				"url": {
+					"raw": "{{GroupsAPICallURL}}",
+					"host": [
+						"{{GroupsAPICallURL}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Okta_FetchApps",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "032716fd-3b43-4731-a92d-616ce71a38ca",
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"//var jsonHeaders =  pm.resonse.headers();",
+							"var currentActiveAppsCount = 0;",
+							"var currentInactiveAppsCount = 0;",
+							"var nextURL;",
+							"",
+							"for(i=0; i<jsonData.length; i++){",
+							"    //console.log(jsonData[i].id + \"  \" + jsonData[i].profile.name + \"  \" + jsonData[i].type);",
+							"    if(jsonData[i].status == \"ACTIVE\"){",
+							"        currentActiveAppsCount++;",
+							"    }",
+							"    else{",
+							"        currentInactiveAppsCount++;",
+							"    }",
+							"    ",
+							"}",
+							"",
+							"//Adding group count to the environment variables",
+							"",
+							"pm.environment.set(\"ActiveApps\", Number((pm.environment.get(\"ActiveApps\")) + currentActiveAppsCount));",
+							"pm.environment.set(\"InactiveApps\", Number((pm.environment.get(\"InactiveApps\")) + currentInactiveAppsCount));",
+							"",
+							"//set next API request by using the Link header captured from the response headers",
+							"",
+							"    //step 1 - capture link header",
+							"    nextURL = pm.response.headers.get(\"Link\");",
+							"    ",
+							"    //step2 - see if the response headers have the next ref URL",
+							"    try{",
+							"        pm.expect(nextURL).to.include('rel=\"next\"');",
+							"        //If the response headers have next ref URL, then set the next request. If the next ref URL is not available then above statement will throw Assertion Error.",
+							"        pm.environment.set(\"AppsAPICallURL\", nextURL.split(\"<\")[1].split(\">\")[0]);",
+							"        postman.setNextRequest(\"Okta_FetchApps\");",
+							"    }",
+							"    catch(AssertionError){",
+							"        console.log(\"Apps Processed\");",
+							"        console.log(\"There are \" + pm.environment.get(\"ActiveApps\") + \" applications integrated within your Okta instance\");",
+							"        postman.setNextRequest(\"Trigger_Spark_Mail\");",
+							"    }"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "SSWS {{apikey}}"
+					}
+				],
+				"url": {
+					"raw": "{{AppsAPICallURL}}",
+					"host": [
+						"{{AppsAPICallURL}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trigger_Spark_Mail",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "34436cd7-c51d-4567-b2c4-a4bab7929ab7",
+						"exec": [
+							"console.log(\"Mail Sent\");",
+							"postman.setNextRequest(\"OktaHVRun_RestoreEnvironment\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{spark_api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"campaign_id\": \"postman_inline_both_example\",\n  \"recipients\": [\n    {\n      \"address\": \"{{recipentEmail}}\"\n    }\n  ],\n  \"content\": {\n    \"from\": {\n      \"email\": \"{{senderMail}}\",\n      \"name\": \"Okta Info\"\n    },\n\n    \"subject\": \"Okta Daily Report\",\n    \n    \"html\": \n    \"<html>\n    <body>\n    <h4>Newman run successfully completed.</h4>\n    <b>USER DATA</b>\n\t</br>Active Users - {{ActiveUsers}}\n\t</br>Deprovisioned Users - {{DeprovisionedUsers}}\n\t</br>Users processed in this run - {{TotalUsersProcessed}}\n\t</br></br>\n\t<b>APPLICATIONS & GROUPS DATA</b>\n\t</br>Active Applications - {{ActiveApps}}\n\t</br>Inactive Applications - {{InactiveApps}}\n\t</br>Groups - {{GroupsCount}}\n\t</body>\n\t<html>\"\n  }\n}"
+				},
+				"url": {
+					"raw": "https://api.sparkpost.com/api/v1/transmissions?num_rcpt_errors=3",
+					"protocol": "https",
+					"host": [
+						"api",
+						"sparkpost",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"transmissions"
+					],
+					"query": [
+						{
+							"key": "num_rcpt_errors",
+							"value": "3"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "OktaHVRun_RestoreEnvironment",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "9dc0bb2a-9ce0-45e4-8ff3-bf9e0cedb7b2",
+						"exec": [
+							"pm.environment.unset(\"GroupsCount\");",
+							"pm.environment.unset(\"APICallURL\");",
+							"pm.environment.unset(\"ExternalUsers\");",
+							"pm.environment.unset(\"TotalUsersProcessed\");",
+							"pm.environment.unset(\"ActiveApps\");",
+							"pm.environment.unset(\"InactiveApps\");",
+							"pm.environment.unset(\"GroupsAPICallURL\");",
+							"pm.environment.unset(\"AppsAPICallURL\");",
+							"pm.environment.unset(\"ActiveUsers\", \"\");",
+							"pm.environment.unset(\"DeprovisionedUsers\", \"\");",
+							"",
+							"postman.setNextRequest(null);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "SSWS {{apikey}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/api/v1/groups?limit=100",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"groups"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "70c79a87-4187-48ea-ac5f-1ffdf2bd0767",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "58f8891d-b46f-4ab4-876a-db6b9517162b",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"protocolProfileBehavior": {}
+}
