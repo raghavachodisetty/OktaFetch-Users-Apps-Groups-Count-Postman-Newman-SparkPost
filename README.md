@@ -9,7 +9,7 @@ This code will fetch active/staged users count from Okta using postman. This cod
 
 ####  okta_users_count_with_custom_filters.postman_collection.json
 
-You don't have to make any changes to this file unless you want to customize it with your own custom attribute filters.This json file is the key file and it has 3 API Request.
+You don't have to make any changes to this file unless you want to customize it with your own custom attribute filters.This json file is the key file and it has 7 API Requests.
 
 ***1. Okta_InitializeEnvironment*** - This request will initialize the environment with all the required environment variables and API Call URL. Once done, it will call the next request (Fetch_Users_From_Okta).
 
