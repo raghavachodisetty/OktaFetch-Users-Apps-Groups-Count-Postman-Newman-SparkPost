@@ -355,7 +355,14 @@
 							"    catch(AssertionError){",
 							"        console.log(\"Apps Processed\");",
 							"        console.log(\"There are \" + pm.environment.get(\"ActiveApps\") + \" applications integrated within your Okta instance\");",
-							"        postman.setNextRequest(\"Trigger_Spark_Mail\");",
+							"        ",
+							"        if(pm.environment.get(\"spark_api_key\") === \"\"){",
+							"            postman.setNextRequest(\"Okta_RestoreEnvironment\");",
+							"        }",
+							"        else{",
+							"            postman.setNextRequest(\"Trigger_Spark_Mail\");",
+							"        }",
+							"        ",
 							"    }"
 						],
 						"type": "text/javascript"
@@ -399,7 +406,7 @@
 						"id": "34436cd7-c51d-4567-b2c4-a4bab7929ab7",
 						"exec": [
 							"console.log(\"Mail Sent\");",
-							"postman.setNextRequest(\"OktaHVRun_RestoreEnvironment\");"
+							"postman.setNextRequest(\"Okta_RestoreEnvironment\");"
 						],
 						"type": "text/javascript"
 					}
@@ -449,7 +456,7 @@
 			"response": []
 		},
 		{
-			"name": "OktaHVRun_RestoreEnvironment",
+			"name": "Okta_RestoreEnvironment",
 			"event": [
 				{
 					"listen": "test",
